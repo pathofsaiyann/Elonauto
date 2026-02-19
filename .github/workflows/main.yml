@@ -1,0 +1,42 @@
+name: ElonAuto AI Pipeline
+
+on:
+  schedule:
+    # Runs every 8 hours to check for news/deals/papers
+    - cron: '0 */8 * * *'
+  workflow_dispatch: # Allows you to run it manually anytime
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Decode Google Credentials
+        # This decodes your service_account.json from a secret
+        run: echo "${{ secrets.GDRIVE_CREDENTIALS_BASE64 }}" | base64 --decode > service_account.json
+
+      - name: Run Pipeline
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: python run_once.py

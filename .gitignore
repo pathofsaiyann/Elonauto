@@ -1,0 +1,8 @@
+.env
+service_account.json
+venv/
+__pycache__/
+assets/temp_hunt_*
+scheduler.log
+*.mp4
+history.json

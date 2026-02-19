@@ -1,0 +1,13 @@
+requests
+newsapi-python
+groq
+python-dotenv
+python-telegram-bot
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+youtube-transcript-api
+yt-dlp
+schedule
+arxiv
+pytz
