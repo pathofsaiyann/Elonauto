@@ -55,8 +55,14 @@ client = Groq(api_key=GROQ_API_KEY)
 bot = Bot(token=TELEGRAM_TOKEN)
 
 SEARCH_KEYWORDS = [
-    "Tech podcast", 
-    "AI interview"
+    "Elon Musk podcast", 
+    "Sam Altman interview", 
+    "Jeff Bezos advice", 
+    "Jensen Huang speech", 
+    "Mark Zuckerberg interview", 
+    "Satya Nadella tech", 
+    "Naval Ravikant podcast", 
+    "Peter Thiel interview"
 ]
 
 def search_ytdlp_keyword(keyword, date_filter=None):
@@ -64,7 +70,9 @@ def search_ytdlp_keyword(keyword, date_filter=None):
     try:
         ydl_opts = {
             'quiet': True,
+            'no_warnings': True,
             'extract_flat': True,
+            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         }
         if date_filter:
             ydl_opts['dateafter'] = date_filter
@@ -101,6 +109,8 @@ def get_transcript_text(video_id):
             'subtitleslangs': ['en'],
             'outtmpl': temp_vtt,
             'quiet': True,
+            'no_warnings': True,
+            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -197,6 +207,8 @@ def download_clip(video_url, start_time, end_time, output_filename="clip.mp4"):
         ydl_opts = {
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'quiet': True,
+            'no_warnings': True,
+            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
