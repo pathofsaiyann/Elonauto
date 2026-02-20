@@ -11,7 +11,24 @@ from dotenv import load_dotenv
 from telegram import Bot
 
 import random
-import storage
+
+HISTORY_FILE = "history.json"
+
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading {HISTORY_FILE}: {e}")
+    return []
+
+def save_history(history):
+    try:
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(history, f, indent=4)
+    except Exception as e:
+        logger.error(f"Error saving {HISTORY_FILE}: {e}")
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,20 +55,20 @@ client = Groq(api_key=GROQ_API_KEY)
 bot = Bot(token=TELEGRAM_TOKEN)
 
 SEARCH_KEYWORDS = [
-    "Elon Musk podcast", 
-    "AI technology future", 
-    "Startup motivation", 
-    "Tech billionaire advice"
+    "Tech podcast", 
+    "AI interview"
 ]
 
-def search_ytdlp_keyword(keyword):
+def search_ytdlp_keyword(keyword, date_filter=None):
     """Searches YouTube globally for a keyword, returning up to 30 results."""
     try:
         ydl_opts = {
             'quiet': True,
             'extract_flat': True,
-            # Removed time filters (e.g., dateafter), allowing old videos.
         }
+        if date_filter:
+            ydl_opts['dateafter'] = date_filter
+            
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # Custom search query: ytsearch30 fetches top 30
             search_query = f"ytsearch30:{keyword}"
@@ -186,37 +203,45 @@ async def send_telegram_video(video_path, caption):
 async def run_clipper():
     logger.info("Starting Viral Clipper...")
     
-    # 1. Load History STRICTLY
-    history = storage.load_history()
+    # 1. Load History STRICTLY locally
+    history = load_history()
     
     # 2. Pick a Random Keyword
     selected_keyword = random.choice(SEARCH_KEYWORDS)
     logger.info(f"Selected Keyword: '{selected_keyword}'")
     
-    # 3. Global Search (No time filters)
-    logger.info("Searching YouTube...")
-    videos = search_ytdlp_keyword(selected_keyword)
+    # 3. First pass: recent videos (last 7 days)
+    logger.info("Searching YouTube for recent videos (last 7 days)...")
+    videos = search_ytdlp_keyword(selected_keyword, date_filter='today-7days')
     
     found_video = None
     
     # 4. Strict 1-Video Rule: Find the FIRST unseen video
     for video in videos:
         if video['id'] not in history:
-            logger.info(f"Fresh match found: {video['title']} (ID: {video['id']})")
+            logger.info(f"Recent fresh match found: {video['title']} (ID: {video['id']})")
             found_video = video
+            break
             
-            # 5. IMMEDIATELY update history to lock it globally
-            history.append(video['id'])
-            storage.save_history(history)
-            logger.info(f"Video {video['id']} saved to history.json. It will never repeat.")
-            
-            break # Stop searching, we have our 1 video
-        else:
-            logger.debug(f"Skipping processed video: {video['id']}")
-    
+    # 5. Fallback pass: any age
+    if not found_video:
+        logger.info("No fresh recent videos found. Falling back to older videos...")
+        videos = search_ytdlp_keyword(selected_keyword, date_filter=None)
+        
+        for video in videos:
+            if video['id'] not in history:
+                logger.info(f"Older fresh match found: {video['title']} (ID: {video['id']})")
+                found_video = video
+                break
+
     if not found_video:
         logger.info("No fresh videos found for this keyword today.")
         return
+        
+    # IMMEDIATELY update history to lock it globally so it won't repeat
+    history.append(found_video['id'])
+    save_history(history)
+    logger.info(f"Video {found_video['id']} saved to local history.json. It will never repeat.")
 
     logger.info("Fetching transcript...")
     transcript_text = get_transcript_text(found_video['id'])
@@ -241,8 +266,12 @@ async def run_clipper():
         caption = f"🎬 *{found_video['title']}*\n\n{analysis['caption']}\n\n🔗 {found_video['url']}"
         await send_telegram_video(saved_path, caption)
         
-        # Cleanup
-        # os.remove(saved_path)
+        # Cleanup local file
+        try:
+            os.remove(saved_path)
+            logger.info(f"Deleted local clip: {saved_path}")
+        except Exception as e:
+            logger.error(f"Failed to delete {saved_path}: {e}")
 
 if __name__ == "__main__":
     asyncio.run(run_clipper())

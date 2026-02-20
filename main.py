@@ -8,7 +8,6 @@ import pytz
 # Project Modules
 import news_bot
 import clipper
-import vc_hunter
 
 # Setup logging
 logging.basicConfig(
@@ -39,15 +38,6 @@ def run_clipper_job():
     except Exception as e:
         logger.error(f"❌ Viral Clipper failed: {e}")
 
-def run_vc_job():
-    """Wrapper to run the async VC Hunter."""
-    logger.info("⏳ Starting scheduled VC Hunter...")
-    try:
-        asyncio.run(vc_hunter.run_vc_hunter())
-        logger.info("✅ VC Hunter completed successfully.")
-    except Exception as e:
-        logger.error(f"❌ VC Hunter failed: {e}")
-
 
 def start_scheduler():
     logger.info("🚀 Global Tech Asset Hunter Scheduler Started")
@@ -59,10 +49,6 @@ def start_scheduler():
     # 2. Viral Clipper: Every day at 9:00 PM IST
     schedule.every().day.at("21:00").do(run_clipper_job)
     logger.info("📅 Scheduled: Viral Clipper daily at 21:00.")
-
-    # 3. VC Hunter: Every 12 hours
-    schedule.every(12).hours.do(run_vc_job)
-    logger.info("📅 Scheduled: VC Hunter every 12 hours.")
     
 
     # Run immediately on startup? 

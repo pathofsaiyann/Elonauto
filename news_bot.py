@@ -9,9 +9,24 @@ from telegram import Bot, InputMediaPhoto
 # Project Modules
 import brain
 import hunter
-import storage
 
-# Setup logging
+HISTORY_FILE = "history.json"
+
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading {HISTORY_FILE}: {e}")
+    return []
+
+def save_history(history):
+    try:
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(history, f, indent=4)
+    except Exception as e:
+        logger.error(f"Error saving {HISTORY_FILE}: {e}")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -80,8 +95,8 @@ async def run_news_cycle():
     """Runs a single cycle of the news hunt."""
     logger.info("Starting Global Tech Asset Hunter Cycle...")
     
-    # Initialize/Load History
-    history = storage.load_history()
+    # Initialize/Load History locally
+    history = load_history()
     
     try:
         logger.info(f"--- Cycle started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
@@ -106,12 +121,21 @@ async def run_news_cycle():
             # 3. Delivery: Telegram Media Group + Strategy Block
             await send_media_group_notification(item, assets)
             
+            # Clean up local assets
+            for key, path in assets.items():
+                if path and os.path.exists(path):
+                    try:
+                        os.remove(path)
+                        logger.info(f"Deleted local asset: {path}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete {path}: {e}")
+            
             # Update History
             history.append(headline)
             if item.get('link'):
                 history.append(item['link'])
-            storage.save_history(history)
-            logger.info("History updated.")
+            save_history(history)
+            logger.info("Local history updated.")
         
     except Exception as e:
         logger.error(f"Error in news cycle: {e}")

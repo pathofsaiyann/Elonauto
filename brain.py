@@ -75,8 +75,8 @@ def evaluate_headline(headline):
 
 def process_elon_news(history=None):
     """Main function to scrape, evaluate, and filter headlines using NewsAPI."""
-    # Updated keywords for API-first Pipeline
-    queries = ['OpenAI', 'SpaceX', 'Nvidia', 'Neuralink', 'Tesla AI']
+    # Broadened Tech Scope
+    queries = ["AI technology", "Startup innovation", "Tech gadgets 2026", "Future tech"]
     
     high_impact_items = []
     
@@ -129,7 +129,7 @@ def process_elon_news(history=None):
                 analysis = evaluate_headline(headline)
                 score = analysis.get('score', 0)
                 
-                if score > 5: # Viral threshold
+                if score >= 5: # Lowered threshold to guarantee 1 post/day
                     high_impact_items.append({
                         'score': score,
                         'headline': headline,
