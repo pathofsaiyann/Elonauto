@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+SERPER_API_KEY = os.getenv("SERPER_API_KEY", "").strip()
 
 if not SERPER_API_KEY:
     logger.error("SERPER_API_KEY not found in environment variables.")

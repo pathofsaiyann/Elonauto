@@ -27,7 +27,7 @@ def upload_to_drive(file_path, folder_id=None):
         folder_id (str): The ID of the parent folder in Drive. Defaults to DRIVE_FOLDER_ID from .env.
     """
     if folder_id is None:
-        folder_id = os.getenv('GDRIVE_FOLDER_ID')
+        folder_id = os.getenv('GDRIVE_FOLDER_ID', "").strip()
     
     if not folder_id:
         print("Error: DRIVE_FOLDER_ID not found in environment variables.")
@@ -88,7 +88,7 @@ def get_file_id_by_name(name, folder_id):
 def download_from_drive(file_name, local_path, folder_id=None):
     """Downloads a file from Google Drive."""
     if folder_id is None:
-        folder_id = os.getenv('GDRIVE_FOLDER_ID')
+        folder_id = os.getenv('GDRIVE_FOLDER_ID', "").strip()
     
     file_id = get_file_id_by_name(file_name, folder_id)
     if not file_id:

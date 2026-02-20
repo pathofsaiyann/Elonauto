@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+SERPER_API_KEY = os.getenv("SERPER_API_KEY", "").strip()
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 
 if not all([GROQ_API_KEY, SERPER_API_KEY, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]):
     logger.error("Missing API keys in .env")

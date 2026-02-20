@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 
 if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
     logger.error("Telegram credentials missing in .env")

@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "").strip()
 
 if not GROQ_API_KEY:
     logger.error("GROQ_API_KEY not found in environment variables.")
