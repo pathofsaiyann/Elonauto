@@ -3,7 +3,6 @@ import logging
 import news_bot
 import clipper
 import vc_hunter
-import paper_hunter
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -27,12 +26,6 @@ async def run_everything_once():
     except Exception as e:
         logger.error(f"VC Hunter failed: {e}")
 
-    # 3. Paper Hunter
-    logger.info("--- Running Paper Hunter ---")
-    try:
-        await paper_hunter.run_paper_hunter()
-    except Exception as e:
-        logger.error(f"Paper Hunter failed: {e}")
 
     # 4. Clipper (Optional: Usually high resource, but let's include it)
     logger.info("--- Running Viral Clipper ---")

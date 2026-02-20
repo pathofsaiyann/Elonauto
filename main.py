@@ -9,7 +9,6 @@ import pytz
 import news_bot
 import clipper
 import vc_hunter
-import paper_hunter
 
 # Setup logging
 logging.basicConfig(
@@ -49,14 +48,6 @@ def run_vc_job():
     except Exception as e:
         logger.error(f"❌ VC Hunter failed: {e}")
 
-def run_paper_job():
-    """Wrapper to run the async Paper Hunter."""
-    logger.info("⏳ Starting scheduled Paper Hunter...")
-    try:
-        asyncio.run(paper_hunter.run_paper_hunter())
-        logger.info("✅ Paper Hunter completed successfully.")
-    except Exception as e:
-        logger.error(f"❌ Paper Hunter failed: {e}")
 
 def start_scheduler():
     logger.info("🚀 Global Tech Asset Hunter Scheduler Started")
@@ -73,9 +64,6 @@ def start_scheduler():
     schedule.every(12).hours.do(run_vc_job)
     logger.info("📅 Scheduled: VC Hunter every 12 hours.")
     
-    # 4. Paper Hunter: Every day at 10:00 AM
-    schedule.every().day.at("10:00").do(run_paper_job)
-    logger.info("📅 Scheduled: Paper Hunter daily at 10:00.")
 
     # Run immediately on startup? 
     # User didn't ask to run immediately, but typically you want one run to verify.

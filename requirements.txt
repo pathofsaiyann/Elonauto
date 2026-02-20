@@ -9,5 +9,4 @@ google-auth-oauthlib
 youtube-transcript-api
 yt-dlp
 schedule
-arxiv
 pytz

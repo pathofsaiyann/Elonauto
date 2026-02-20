@@ -52,10 +52,10 @@ def upload_to_drive(file_path, folder_id=None):
             fields='id',
             supportsAllDrives=True
         ).execute()
-        print(f"File uploaded successfully to folder {folder_id}! File ID: {file.get('id')}")
+        print(f"File created successfully in folder {folder_id}! File ID: {file.get('id')}")
         return file.get('id')
     except Exception as e:
-        print(f"An error occurred during upload: {e}")
+        print(f"An error occurred during create/upload: {e}")
         return None
 
 def update_in_drive(file_path, file_id):
@@ -78,7 +78,9 @@ def update_in_drive(file_path, file_id):
 def get_file_id_by_name(name, folder_id):
     """Finds a file ID by its name in a specific folder."""
     service = authenticate_drive()
-    query = f"name = '{name}' and '{folder_id}' in parents and trashed = false"
+    # Escape single quotes in filename for safety
+    safe_name = name.replace("'", "\\'")
+    query = f"name = '{safe_name}' and '{folder_id}' in parents and trashed = false"
     try:
         results = service.files().list(
             q=query, 
