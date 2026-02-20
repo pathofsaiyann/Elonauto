@@ -44,7 +44,7 @@ def upload_to_drive(file_path, folder_id=None):
     service = authenticate_drive()
     file_metadata = {
         'name': file_name,
-        'parents': [folder_id]
+        'parents': [os.getenv('GDRIVE_FOLDER_ID').strip()]
     }
     media = MediaFileUpload(file_path, resumable=True)
     
