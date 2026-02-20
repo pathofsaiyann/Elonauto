@@ -72,7 +72,7 @@ def search_ytdlp_keyword(keyword, date_filter=None):
             'quiet': True,
             'no_warnings': True,
             'extract_flat': True,
-            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+            'extractor_args': {'youtube': {'player_client': ['ios', 'android']}},
         }
         if date_filter:
             ydl_opts['dateafter'] = date_filter
@@ -110,7 +110,7 @@ def get_transcript_text(video_id):
             'outtmpl': temp_vtt,
             'quiet': True,
             'no_warnings': True,
-            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+            'extractor_args': {'youtube': {'player_client': ['ios', 'android']}},
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -208,7 +208,7 @@ def download_clip(video_url, start_time, end_time, output_filename="clip.mp4"):
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'quiet': True,
             'no_warnings': True,
-            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+            'extractor_args': {'youtube': {'player_client': ['ios', 'android']}},
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
