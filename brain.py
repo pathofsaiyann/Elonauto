@@ -1,4 +1,5 @@
 import os
+import random
 import json
 import logging
 import requests
@@ -86,67 +87,68 @@ def process_elon_news(history=None):
     # Calculate 12-hour window
     from_time = (datetime.now() - timedelta(hours=12)).isoformat()
     
-    for query in queries:
-        logger.info(f"Fetching headlines for query: {query}")
+    # Pick ONE random keyword to avoid 429 Rate Limits
+    selected_query = random.choice(queries)
+    logger.info(f"Selected NewsAPI query: {selected_query}")
+    
+    params = {
+        'q': selected_query,
+        'apiKey': NEWSAPI_KEY,
+        'language': 'en',
+        'sortBy': 'popularity',
+        'from': from_time, # Freshness Logic
+        'pageSize': 5
+    }
+    
+    try:
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        articles = data.get('articles', [])
         
-        params = {
-            'q': query,
-            'apiKey': NEWSAPI_KEY,
-            'language': 'en',
-            'sortBy': 'popularity',
-            'from': from_time, # Freshness Logic
-            'pageSize': 5
-        }
-        
-        try:
-            response = requests.get(base_url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            articles = data.get('articles', [])
-            
-            if not articles:
-                logger.warning(f"No results found for {query}")
-                continue
+        if not articles:
+            logger.warning(f"No results found for {selected_query}")
+            return []
 
-            for article in articles:
-                headline = article.get('title')
-                link = article.get('url')
-                date = article.get('publishedAt')
-                source_name = article.get('source', {}).get('name', 'Unknown')
+        for article in articles:
+            headline = article.get('title')
+            link = article.get('url')
+            date = article.get('publishedAt')
+            source_name = article.get('source', {}).get('name', 'Unknown')
+            
+            # STRICT HISTORY LOCK
+            if not headline or '[Removed]' in headline:
+                continue
                 
-                # STRICT HISTORY LOCK
-                if not headline or '[Removed]' in headline:
+            if history:
+                # Check both headline and link to be sure
+                if headline in history or link in str(history):
                     continue
-                    
-                if history:
-                    # Check both headline and link to be sure
-                    if headline in history or link in str(history):
-                        continue
+            
+            logger.info(f"New headline found: {headline}")
+            
+            # Deep Analysis (Only if passed history lock)
+            analysis = evaluate_headline(headline)
+            score = analysis.get('score', 0)
+            
+            if score >= 5: # Lowered threshold to guarantee 1 post/day
+                high_impact_items.append({
+                    'score': score,
+                    'headline': headline,
+                    'sentiment': analysis.get('sentiment', 'Neutral'),
+                    'people': analysis.get('people', []),
+                    'companies': analysis.get('companies', []),
+                    'insta_hook': analysis.get('insta_hook', ''),
+                    'best_time': analysis.get('best_time', '09:00 AM EST'),
+                    'hashtags': analysis.get('hashtags', []),
+                    'link': link,
+                    'source_name': source_name,
+                    'date': date
+                })
                 
-                logger.info(f"New headline found: {headline}")
-                
-                # Deep Analysis (Only if passed history lock)
-                analysis = evaluate_headline(headline)
-                score = analysis.get('score', 0)
-                
-                if score >= 5: # Lowered threshold to guarantee 1 post/day
-                    high_impact_items.append({
-                        'score': score,
-                        'headline': headline,
-                        'sentiment': analysis.get('sentiment', 'Neutral'),
-                        'people': analysis.get('people', []),
-                        'companies': analysis.get('companies', []),
-                        'insta_hook': analysis.get('insta_hook', ''),
-                        'best_time': analysis.get('best_time', '09:00 AM EST'),
-                        'hashtags': analysis.get('hashtags', []),
-                        'link': link,
-                        'source_name': source_name,
-                        'date': date
-                    })
-                    
-        except Exception as e:
-            logger.error(f"NewsAPI error for {query}: {e}")
-            continue
+    except Exception as e:
+        logger.error(f"NewsAPI error for {selected_query}: {e}")
+        return []
     
     # Sort by score desc, return top 3
     high_impact_items.sort(key=lambda x: x['score'], reverse=True)

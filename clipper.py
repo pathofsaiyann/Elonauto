@@ -216,10 +216,19 @@ async def run_clipper():
     
     found_video = None
     
-    # 4. Strict 1-Video Rule: Find the FIRST unseen video
+    # 4. Strict 1-Video Rule: Find the FIRST unseen video WITH A TRANSCRIPT
     for video in videos:
         if video['id'] not in history:
             logger.info(f"Recent fresh match found: {video['title']} (ID: {video['id']})")
+            
+            logger.info("Fetching transcript...")
+            transcript_text = get_transcript_text(video['id'])
+            
+            if not transcript_text:
+                logger.warning(f"No transcript available for {video['id']}. Skipping to next video.")
+                continue # Transcript failed (e.g., disabled), try next video!
+                
+            # SUCCESS! We found a fresh video with a working transcript
             found_video = video
             break
             
@@ -231,11 +240,20 @@ async def run_clipper():
         for video in videos:
             if video['id'] not in history:
                 logger.info(f"Older fresh match found: {video['title']} (ID: {video['id']})")
+                
+                logger.info("Fetching transcript...")
+                transcript_text = get_transcript_text(video['id'])
+                
+                if not transcript_text:
+                    logger.warning(f"No transcript available for {video['id']}. Skipping to next video.")
+                    continue
+                    
+                # SUCCESS!
                 found_video = video
                 break
 
     if not found_video:
-        logger.info("No fresh videos found for this keyword today.")
+        logger.info("No viable videos (with transcripts) found for this keyword today.")
         return
         
     # IMMEDIATELY update history to lock it globally so it won't repeat
@@ -243,14 +261,8 @@ async def run_clipper():
     save_history(history)
     logger.info(f"Video {found_video['id']} saved to local history.json. It will never repeat.")
 
-    logger.info("Fetching transcript...")
-    transcript_text = get_transcript_text(found_video['id'])
-    
-    if not transcript_text:
-        logger.warn("No transcript available.")
-        return
-
     logger.info("Analyzing with Groq...")
+
     analysis = analyze_transcript(transcript_text)
     
     if not analysis:
