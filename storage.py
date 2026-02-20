@@ -30,7 +30,7 @@ def upload_to_drive(file_path, folder_id=None):
         folder_id = os.getenv('GDRIVE_FOLDER_ID', "").strip()
     
     if not folder_id:
-        print("Error: DRIVE_FOLDER_ID not found in environment variables.")
+        print("Error: GDRIVE_FOLDER_ID not found in environment variables.")
         return None
 
     file_id = get_file_id_by_name(os.path.basename(file_path), folder_id)
@@ -49,9 +49,10 @@ def upload_to_drive(file_path, folder_id=None):
         file = service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id'
+            fields='id',
+            supportsAllDrives=True
         ).execute()
-        print(f"File uploaded successfully! File ID: {file.get('id')}")
+        print(f"File uploaded successfully to folder {folder_id}! File ID: {file.get('id')}")
         return file.get('id')
     except Exception as e:
         print(f"An error occurred during upload: {e}")
@@ -65,7 +66,8 @@ def update_in_drive(file_path, file_id):
         file = service.files().update(
             fileId=file_id,
             media_body=media,
-            fields='id'
+            fields='id',
+            supportsAllDrives=True
         ).execute()
         print(f"File updated successfully! File ID: {file.get('id')}")
         return file.get('id')
@@ -78,7 +80,12 @@ def get_file_id_by_name(name, folder_id):
     service = authenticate_drive()
     query = f"name = '{name}' and '{folder_id}' in parents and trashed = false"
     try:
-        results = service.files().list(q=query, fields="files(id)").execute()
+        results = service.files().list(
+            q=query, 
+            fields="files(id)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
         files = results.get('files', [])
         return files[0].get('id') if files else None
     except Exception as e:
@@ -99,7 +106,10 @@ def download_from_drive(file_name, local_path, folder_id=None):
     try:
         from googleapiclient.http import MediaIoBaseDownload
         import io
-        request = service.files().get_media(fileId=file_id)
+        request = service.files().get_media(
+            fileId=file_id,
+            supportsAllDrives=True
+        )
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
