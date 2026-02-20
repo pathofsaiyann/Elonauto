@@ -2,7 +2,6 @@ import asyncio
 import logging
 import news_bot
 import clipper
-import vc_hunter
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -19,15 +18,7 @@ async def run_everything_once():
     except Exception as e:
         logger.error(f"News Bot failed: {e}")
 
-    # 2. VC Hunter
-    logger.info("--- Running VC Hunter ---")
-    try:
-        await vc_hunter.run_vc_hunter()
-    except Exception as e:
-        logger.error(f"VC Hunter failed: {e}")
-
-
-    # 4. Clipper (Optional: Usually high resource, but let's include it)
+    # 2. Clipper (Optional: Usually high resource, but let's include it)
     logger.info("--- Running Viral Clipper ---")
     try:
         await clipper.run_clipper()
