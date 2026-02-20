@@ -5,7 +5,7 @@ import asyncio
 import re
 from datetime import datetime
 import yt_dlp
-from youtube_transcript_api import YouTubeTranscriptApi
+import subprocess
 from groq import Groq
 from dotenv import load_dotenv
 from telegram import Bot
@@ -90,26 +90,47 @@ def search_ytdlp_keyword(keyword, date_filter=None):
     return []
 
 def get_transcript_text(video_id):
-    """Fetches transcript."""
+    """Fetches auto-generated subtitles using yt-dlp and reads the .vtt file."""
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        # Combine into a single string with timestamps for context if needed, 
-        # but for LLM analysis, we might just want text blocks. 
-        # However, to cut, we need to map back to timestamps.
-        # Let's verify if we can just feed text and get approx timestamps or feed the whole JSON.
-        # Feeding the whole JSON might be too big. 
-        # Let's simplify: Feed text chunks with time markers.
+        url = f"https://www.youtube.com/watch?v={video_id}"
+        temp_vtt = f"temp_{video_id}"
         
-        full_text = ""
-        for t in transcript:
-            start = int(t['start'])
-            text = t['text']
-            # Add timestamp every 30 seconds to help LLM locate
-            full_text += f"[{start}s] {text} "
+        ydl_opts = {
+            'skip_download': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'outtmpl': temp_vtt,
+            'quiet': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
             
+        # yt-dlp auto-appends language code, e.g., temp_VIDEOID.en.vtt
+        vtt_file = f"{temp_vtt}.en.vtt"
+        
+        if not os.path.exists(vtt_file):
+            logger.warning(f"No auto-subtitles generated for {video_id}")
+            return None
+            
+        # Read and parse VTT
+        full_text = ""
+        with open(vtt_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            for line in lines:
+                # Basic cleaning of VTT metadata and formatting
+                if '-->' in line or line.startswith('WEBVTT') or line.startswith('Kind:') or line.startswith('Language:') or not line.strip():
+                    continue
+                clean_line = re.sub(r'<[^>]+>', '', line).strip() # Remove tags like <c>
+                if clean_line:
+                    full_text += clean_line + " "
+                    
+        # Cleanup
+        os.remove(vtt_file)
         return full_text
+        
     except Exception as e:
-        logger.error(f"Error fetching transcript for {video_id}: {e}")
+        logger.error(f"Error fetching transcript via yt-dlp for {video_id}: {e}")
         return None
 
 def analyze_transcript(text):
@@ -161,30 +182,51 @@ def time_str_to_seconds(time_str):
             return 0
 
 def download_clip(video_url, start_time, end_time, output_filename="clip.mp4"):
-    """Downloads and cuts the clip."""
+    """Downloads and cuts the clip using raw FFmpeg subprocess and yt-dlp direct stream URL."""
     start_sec = time_str_to_seconds(start_time)
     end_sec = time_str_to_seconds(end_time)
     
-    if end_sec - start_sec < 5: 
-        end_sec = start_sec + 30 # Fallback default
+    duration = end_sec - start_sec
+    if duration < 5: 
+        duration = 30 # Fallback default
         
-    logger.info(f"Clipping from {start_sec}s to {end_sec}s")
-    
-    ydl_opts = {
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-        'outtmpl': output_filename,
-        'download_ranges': yt_dlp.utils.download_range_func(None, [(start_sec, end_sec)]),
-        'force_keyframes_at_cuts': True,
-        'quiet': False,
-        'overwrite': True,
-    }
+    logger.info(f"Clipping exactly {duration}s starting from {start_time}")
     
     try:
+        # 1. Get direct stream URL via yt-dlp
+        ydl_opts = {
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'quiet': True,
+        }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
-        return output_filename
+            info = ydl.extract_info(video_url, download=False)
+            stream_url = info['url']
+            
+        # 2. Raw FFmpeg subprocess execution
+        command = [
+            'ffmpeg',
+            '-ss', str(start_sec),
+            '-i', stream_url,
+            '-t', str(duration),
+            '-c', 'copy', # Ultra-fast stream copy mapping
+            '-y', # Overwrite exactly
+            output_filename
+        ]
+        
+        logger.info(f"Running FFmpeg: {' '.join(command)}")
+        subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        if os.path.exists(output_filename):
+            return output_filename
+        else:
+            logger.error("FFmpeg completed but output file missing.")
+            return None
+            
+    except subprocess.CalledProcessError as e:
+        logger.error(f"FFmpeg Subprocess error: {e.stderr.decode()}")
+        return None
     except Exception as e:
-        logger.error(f"Download failed: {e}")
+        logger.error(f"Download/Cut failed: {e}")
         return None
 
 async def send_telegram_video(video_path, caption):

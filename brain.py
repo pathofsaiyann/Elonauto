@@ -3,6 +3,7 @@ import random
 import json
 import logging
 import requests
+import feedparser
 from datetime import datetime, timedelta
 from groq import Groq
 from dotenv import load_dotenv
@@ -14,15 +15,10 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "").strip()
 
 if not GROQ_API_KEY:
     logger.error("GROQ_API_KEY not found in environment variables.")
     raise ValueError("Missing GROQ_API_KEY")
-
-if not NEWSAPI_KEY:
-    logger.error("NEWSAPI_KEY not found in environment variables.")
-    raise ValueError("Missing NEWSAPI_KEY")
 
 client = Groq(api_key=GROQ_API_KEY)
 
@@ -75,46 +71,43 @@ def evaluate_headline(headline):
         }
 
 def process_elon_news(history=None):
-    """Main function to scrape, evaluate, and filter headlines using NewsAPI."""
-    # Broadened Tech Scope
-    queries = ["AI technology", "Startup innovation", "Tech gadgets 2026", "Future tech"]
+    """Main function to scrape, evaluate, and filter headlines using RSS Feeds."""
+    
+    rss_feeds = [
+        "https://techcrunch.com/feed/",
+        "https://www.theverge.com/rss/index.xml",
+        "https://wired.com/feed/rss"
+    ]
     
     high_impact_items = []
     
-    # URL for NewsAPI
-    base_url = "https://newsapi.org/v2/everything"
-    
-    # Calculate 12-hour window
-    from_time = (datetime.now() - timedelta(hours=12)).isoformat()
-    
-    # Pick ONE random keyword to avoid 429 Rate Limits
-    selected_query = random.choice(queries)
-    logger.info(f"Selected NewsAPI query: {selected_query}")
-    
-    params = {
-        'q': selected_query,
-        'apiKey': NEWSAPI_KEY,
-        'language': 'en',
-        'sortBy': 'popularity',
-        'from': from_time, # Freshness Logic
-        'pageSize': 5
-    }
+    # Pick ONE random feed
+    selected_feed = random.choice(rss_feeds)
+    logger.info(f"Selected RSS Feed: {selected_feed}")
     
     try:
-        response = requests.get(base_url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        articles = data.get('articles', [])
+        feed = feedparser.parse(selected_feed)
         
-        if not articles:
-            logger.warning(f"No results found for {selected_query}")
+        if not feed.entries:
+            logger.warning(f"No results found in feed {selected_feed}")
             return []
+            
+        # Get top 3 recent articles
+        recent_entries = feed.entries[:3]
 
-        for article in articles:
-            headline = article.get('title')
-            link = article.get('url')
-            date = article.get('publishedAt')
-            source_name = article.get('source', {}).get('name', 'Unknown')
+        for entry in recent_entries:
+            headline = entry.get('title')
+            link = entry.get('link')
+            
+            # Use publication date if available, else current time
+            date_str = "Unknown Date"
+            if 'published' in entry:
+                date_str = entry.published
+            elif 'updated' in entry:
+                date_str = entry.updated
+
+            # Assuming feed title is the source
+            source_name = feed.feed.get('title', 'Unknown RSS Source')
             
             # STRICT HISTORY LOCK
             if not headline or '[Removed]' in headline:
@@ -123,6 +116,7 @@ def process_elon_news(history=None):
             if history:
                 # Check both headline and link to be sure
                 if headline in history or link in str(history):
+                    logger.debug(f"Skipping article in history: {headline}")
                     continue
             
             logger.info(f"New headline found: {headline}")
@@ -143,11 +137,11 @@ def process_elon_news(history=None):
                     'hashtags': analysis.get('hashtags', []),
                     'link': link,
                     'source_name': source_name,
-                    'date': date
+                    'date': date_str
                 })
                 
     except Exception as e:
-        logger.error(f"NewsAPI error for {selected_query}: {e}")
+        logger.error(f"RSS Feed error for {selected_feed}: {e}")
         return []
     
     # Sort by score desc, return top 3
