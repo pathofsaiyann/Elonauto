@@ -72,6 +72,7 @@ def search_ytdlp_keyword(keyword, date_filter=None):
             'quiet': True,
             'no_warnings': True,
             'extract_flat': True,
+            'ignoreerrors': True,
             'extractor_args': {'youtube': {'player_client': ['ios', 'android']}},
             'cookiefile': 'cookies.txt',
         }
@@ -112,6 +113,7 @@ def get_transcript_text(video_id):
             'outtmpl': temp_vtt,
             'quiet': True,
             'no_warnings': True,
+            'ignoreerrors': True,
             'extractor_args': {'youtube': {'player_client': ['ios', 'android']}},
             'cookiefile': 'cookies.txt',
         }
@@ -212,7 +214,8 @@ def download_clip(video_url, start_time, end_time, output_filename="clip.mp4"):
     try:
         # 1. Get direct stream URL via yt-dlp
         ydl_opts = {
-            'format': 'best/bestvideo+bestaudio',
+            'format': 'best',
+            'ignoreerrors': True,
             'quiet': True,
             'no_warnings': True,
             'extractor_args': {'youtube': {'player_client': ['ios', 'android']}},
