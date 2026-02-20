@@ -106,8 +106,9 @@ def get_transcript_text(video_id):
         
         ydl_opts = {
             'skip_download': True,
+            'writesubtitles': True,
             'writeautomaticsub': True,
-            'subtitleslangs': ['en'],
+            'subtitleslangs': ['en', 'en-US'],
             'outtmpl': temp_vtt,
             'quiet': True,
             'no_warnings': True,
@@ -119,10 +120,14 @@ def get_transcript_text(video_id):
             ydl.download([url])
             
         # yt-dlp auto-appends language code, e.g., temp_VIDEOID.en.vtt
-        vtt_file = f"{temp_vtt}.en.vtt"
+        vtt_file = None
+        for ext in ['.en.vtt', '.en-US.vtt']:
+            if os.path.exists(f"{temp_vtt}{ext}"):
+                vtt_file = f"{temp_vtt}{ext}"
+                break
         
-        if not os.path.exists(vtt_file):
-            logger.warning(f"No auto-subtitles generated for {video_id}")
+        if not vtt_file:
+            logger.warning(f"Format/Transcript unavailable for {video_id}")
             return None
             
         # Read and parse VTT
@@ -142,7 +147,7 @@ def get_transcript_text(video_id):
         return full_text
         
     except Exception as e:
-        logger.error(f"Error fetching transcript via yt-dlp for {video_id}: {e}")
+        logger.error(f"Format/Transcript unavailable for {video_id}: {e}")
         return None
 
 def analyze_transcript(text):
@@ -207,7 +212,7 @@ def download_clip(video_url, start_time, end_time, output_filename="clip.mp4"):
     try:
         # 1. Get direct stream URL via yt-dlp
         ydl_opts = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'format': 'best/bestvideo+bestaudio',
             'quiet': True,
             'no_warnings': True,
             'extractor_args': {'youtube': {'player_client': ['ios', 'android']}},
@@ -282,7 +287,7 @@ async def run_clipper():
             transcript_text = get_transcript_text(video['id'])
             
             if not transcript_text:
-                logger.warning(f"No transcript available for {video['id']}. Skipping to next video.")
+                logger.warning(f"Format/Transcript unavailable for {video['id']}. Skipping to next video.")
                 continue # Transcript failed (e.g., disabled), try next video!
                 
             # SUCCESS! We found a fresh video with a working transcript
@@ -302,7 +307,7 @@ async def run_clipper():
                 transcript_text = get_transcript_text(video['id'])
                 
                 if not transcript_text:
-                    logger.warning(f"No transcript available for {video['id']}. Skipping to next video.")
+                    logger.warning(f"Format/Transcript unavailable for {video['id']}. Skipping to next video.")
                     continue
                     
                 # SUCCESS!
