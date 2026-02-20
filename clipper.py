@@ -214,7 +214,7 @@ def download_clip(video_url, start_time, end_time, output_filename="clip.mp4"):
     try:
         # 1. Get direct stream URL via yt-dlp
         ydl_opts = {
-            'format': 'best',
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'ignoreerrors': True,
             'quiet': True,
             'no_warnings': True,
@@ -279,76 +279,66 @@ async def run_clipper():
     logger.info("Searching YouTube for recent videos (last 7 days)...")
     videos = search_ytdlp_keyword(selected_keyword, date_filter='today-7days')
     
-    found_video = None
-    
-    # 4. Strict 1-Video Rule: Find the FIRST unseen video WITH A TRANSCRIPT
-    for video in videos:
-        if video['id'] not in history:
-            logger.info(f"Recent fresh match found: {video['title']} (ID: {video['id']})")
+    if not videos:
+        logger.info("No fresh recent videos found. Falling back to older videos...")
+        videos = search_ytdlp_keyword(selected_keyword, date_filter=None)
+
+    if not videos:
+        logger.info("No viable videos found for this keyword today.")
+        return
+
+    # 4. Safe 20-Attempt Loop
+    for video in videos[:20]:
+        if video['id'] in history:
+            continue
             
+        logger.info(f"Attempting video: {video['title']} (ID: {video['id']})")
+        
+        try:
             logger.info("Fetching transcript...")
             transcript_text = get_transcript_text(video['id'])
             
             if not transcript_text:
-                logger.warning(f"Format/Transcript unavailable for {video['id']}. Skipping to next video.")
-                continue # Transcript failed (e.g., disabled), try next video!
+                logger.warning(f"Format/Transcript unavailable for {video['id']}. Skipping.")
+                continue
                 
-            # SUCCESS! We found a fresh video with a working transcript
-            found_video = video
-            break
+            logger.info("Analyzing with Groq...")
+            analysis = analyze_transcript(transcript_text)
             
-    # 5. Fallback pass: any age
-    if not found_video:
-        logger.info("No fresh recent videos found. Falling back to older videos...")
-        videos = search_ytdlp_keyword(selected_keyword, date_filter=None)
-        
-        for video in videos:
-            if video['id'] not in history:
-                logger.info(f"Older fresh match found: {video['title']} (ID: {video['id']})")
+            if not analysis:
+                logger.warning("Analysis failed. Skipping.")
+                continue
                 
-                logger.info("Fetching transcript...")
-                transcript_text = get_transcript_text(video['id'])
+            logger.info(f"Segment identified: {analysis['start']} - {analysis['end']}")
+            
+            clip_filename = f"viral_clip_{video['id']}.mp4"
+            saved_path = download_clip(video['url'], analysis['start'], analysis['end'], clip_filename)
+            
+            if not saved_path:
+                logger.warning("Download/Cut failed. Skipping.")
+                continue
                 
-                if not transcript_text:
-                    logger.warning(f"Format/Transcript unavailable for {video['id']}. Skipping to next video.")
-                    continue
-                    
-                # SUCCESS!
-                found_video = video
-                break
+            caption = f"🎬 *{video['title']}*\n\n{analysis['caption']}\n\n🔗 {video['url']}"
+            await send_telegram_video(saved_path, caption)
+            
+            # Cleanup local file
+            try:
+                os.remove(saved_path)
+                logger.info(f"Deleted local clip: {saved_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete {saved_path}: {e}")
 
-    if not found_video:
-        logger.info("No viable videos (with transcripts) found for this keyword today.")
-        return
-        
-    # IMMEDIATELY update history to lock it globally so it won't repeat
-    history.append(found_video['id'])
-    save_history(history)
-    logger.info(f"Video {found_video['id']} saved to local history.json. It will never repeat.")
-
-    logger.info("Analyzing with Groq...")
-
-    analysis = analyze_transcript(transcript_text)
-    
-    if not analysis:
-        logger.error("Analysis failed.")
-        return
-        
-    logger.info(f"Segment identified: {analysis['start']} - {analysis['end']}")
-    
-    clip_filename = f"viral_clip_{found_video['id']}.mp4"
-    saved_path = download_clip(found_video['url'], analysis['start'], analysis['end'], clip_filename)
-    
-    if saved_path:
-        caption = f"🎬 *{found_video['title']}*\n\n{analysis['caption']}\n\n🔗 {found_video['url']}"
-        await send_telegram_video(saved_path, caption)
-        
-        # Cleanup local file
-        try:
-            os.remove(saved_path)
-            logger.info(f"Deleted local clip: {saved_path}")
+            # IMMEDIATELY update history to lock it globally so it won't repeat
+            history.append(video['id'])
+            save_history(history)
+            logger.info(f"Video {video['id']} saved to local history.json. It will never repeat.")
+            logger.info("Successfully processed and sent 1 viral clip. Stopping loop.")
+            
+            break # Exit the loop after one successful video
+            
         except Exception as e:
-            logger.error(f"Failed to delete {saved_path}: {e}")
+            logger.error(f"Error processing video {video['id']}: {e}")
+            continue
 
 if __name__ == "__main__":
     asyncio.run(run_clipper())
