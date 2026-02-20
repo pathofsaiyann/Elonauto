@@ -140,6 +140,7 @@ import json
 def load_history(filename="history.json"):
     """
     Loads history from Google Drive or local file.
+    Ensures a local file exists.
     Returns: list of history items (strings).
     """
     history = []
@@ -151,17 +152,26 @@ def load_history(filename="history.json"):
                 history = json.load(f)
             print(f"History loaded from Drive: {len(history)} items.")
         except Exception as e:
-            print(f"Error loading history.json from disk: {e}")
+            print(f"Error reading {filename} from disk: {e}")
             history = []
     else:
-        print("No history found on Drive. Starting fresh.")
-        # Try local if exists (fallback)
+        print("No history found on Drive. Checking local...")
         if os.path.exists(filename):
             try:
                 with open(filename, 'r') as f:
-                    history = json.load(f)
-            except Exception:
+                    content = f.read().strip()
+                    if content:
+                        history = json.loads(content)
+                    else:
+                        history = []
+            except Exception as e:
+                print(f"Error reading local history: {e}")
                 history = []
+        else:
+            print(f"Initializing new local {filename}")
+            with open(filename, 'w') as f:
+                json.dump([], f)
+            history = []
             
     return history
 
