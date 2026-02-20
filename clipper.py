@@ -10,6 +10,9 @@ from groq import Groq
 from dotenv import load_dotenv
 from telegram import Bot
 
+import random
+import storage
+
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -34,38 +37,40 @@ if not GROQ_API_KEY or not TELEGRAM_TOKEN:
 client = Groq(api_key=GROQ_API_KEY)
 bot = Bot(token=TELEGRAM_TOKEN)
 
-CHANNELS = [
-    'https://www.youtube.com/@lexfridman/videos',
-    'https://www.youtube.com/@joerogan/videos',
-    'https://www.youtube.com/@AllIn/videos'
+SEARCH_KEYWORDS = [
+    "Elon Musk podcast", 
+    "AI technology future", 
+    "Startup motivation", 
+    "Tech billionaire advice"
 ]
 
-KEYWORDS = ['Elon Musk', 'Jensen Huang', 'Sam Altman']
-
-def get_latest_video(channel_url):
-    """Finds the latest video with keywords from a channel."""
+def search_ytdlp_keyword(keyword):
+    """Searches YouTube globally for a keyword, returning up to 30 results."""
     try:
         ydl_opts = {
             'quiet': True,
             'extract_flat': True,
-            'playlistend': 10,  # Check last 10 videos
+            # Removed time filters (e.g., dateafter), allowing old videos.
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(channel_url, download=False)
-            if 'entries' not in info:
-                return None
+            # Custom search query: ytsearch30 fetches top 30
+            search_query = f"ytsearch30:{keyword}"
+            info = ydl.extract_info(search_query, download=False)
             
+            if 'entries' not in info:
+                return []
+            
+            results = []
             for entry in info['entries']:
-                title = entry.get('title', '')
-                if any(k.lower() in title.lower() for k in KEYWORDS):
-                    return {
-                        'id': entry['id'],
-                        'title': title,
-                        'url': entry['url']
-                    }
+                results.append({
+                    'id': entry['id'],
+                    'title': entry.get('title', ''),
+                    'url': entry['url']
+                })
+            return results
     except Exception as e:
-        logger.error(f"Error scanning {channel_url}: {e}")
-    return None
+        logger.error(f"Error searching for {keyword}: {e}")
+    return []
 
 def get_transcript_text(video_id):
     """Fetches transcript."""
@@ -181,17 +186,36 @@ async def send_telegram_video(video_path, caption):
 async def run_clipper():
     logger.info("Starting Viral Clipper...")
     
+    # 1. Load History STRICTLY
+    history = storage.load_history()
+    
+    # 2. Pick a Random Keyword
+    selected_keyword = random.choice(SEARCH_KEYWORDS)
+    logger.info(f"Selected Keyword: '{selected_keyword}'")
+    
+    # 3. Global Search (No time filters)
+    logger.info("Searching YouTube...")
+    videos = search_ytdlp_keyword(selected_keyword)
+    
     found_video = None
-    for channel in CHANNELS:
-        logger.info(f"Scanning {channel}...")
-        video = get_latest_video(channel)
-        if video:
-            logger.info(f"Found match: {video['title']}")
+    
+    # 4. Strict 1-Video Rule: Find the FIRST unseen video
+    for video in videos:
+        if video['id'] not in history:
+            logger.info(f"Fresh match found: {video['title']} (ID: {video['id']})")
             found_video = video
-            break # Just process one for now
+            
+            # 5. IMMEDIATELY update history to lock it globally
+            history.append(video['id'])
+            storage.save_history(history)
+            logger.info(f"Video {video['id']} saved to history.json. It will never repeat.")
+            
+            break # Stop searching, we have our 1 video
+        else:
+            logger.debug(f"Skipping processed video: {video['id']}")
     
     if not found_video:
-        logger.info("No relevant videos found.")
+        logger.info("No fresh videos found for this keyword today.")
         return
 
     logger.info("Fetching transcript...")
