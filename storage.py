@@ -21,26 +21,29 @@ def authenticate_drive():
 def upload_to_drive(file_path, folder_id=None):
     """
     Uploads a file to a specific Google Drive folder.
-    
-    Args:
-        file_path (str): Path to the file to upload.
-        folder_id (str): The ID of the parent folder in Drive. Defaults to DRIVE_FOLDER_ID from .env.
+    Ensures quota compliance by explicitly setting parents.
     """
     if folder_id is None:
         folder_id = os.getenv('GDRIVE_FOLDER_ID', "").strip()
     
     if not folder_id:
-        print("Error: GDRIVE_FOLDER_ID not found in environment variables.")
+        print("CRITICAL ERROR: GDRIVE_FOLDER_ID is missing. Cannot upload to Drive.")
         return None
 
-    file_id = get_file_id_by_name(os.path.basename(file_path), folder_id)
+    file_name = os.path.basename(file_path)
+    print(f"Attempting to sync '{file_name}' to Folder ID: {folder_id}")
+
+    # 1. Quota Check: See if it exists in THIS folder first
+    file_id = get_file_id_by_name(file_name, folder_id)
     
     if file_id:
+        print(f"File found (ID: {file_id}). Updating existing file to preserve quota...")
         return update_in_drive(file_path, file_id)
 
+    # 2. Create new with explicit parent metadata
     service = authenticate_drive()
     file_metadata = {
-        'name': os.path.basename(file_path),
+        'name': file_name,
         'parents': [folder_id]
     }
     media = MediaFileUpload(file_path, resumable=True)
@@ -52,10 +55,10 @@ def upload_to_drive(file_path, folder_id=None):
             fields='id',
             supportsAllDrives=True
         ).execute()
-        print(f"File created successfully in folder {folder_id}! File ID: {file.get('id')}")
+        print(f"SUCCESS: Created in folder {folder_id}. ID: {file.get('id')}")
         return file.get('id')
     except Exception as e:
-        print(f"An error occurred during create/upload: {e}")
+        print(f"QUOTA ERROR/FAILURE in Folder {folder_id}: {e}")
         return None
 
 def update_in_drive(file_path, file_id):
