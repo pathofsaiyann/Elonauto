@@ -3,6 +3,5 @@ feedparser
 groq
 python-dotenv
 python-telegram-bot
-yt-dlp
 schedule
 pytz

@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import news_bot
-import clipper
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -17,13 +16,6 @@ async def run_everything_once():
         await news_bot.run_news_cycle()
     except Exception as e:
         logger.error(f"News Bot failed: {e}")
-
-    # 2. Clipper (Optional: Usually high resource, but let's include it)
-    logger.info("--- Running Viral Clipper ---")
-    try:
-        await clipper.run_clipper()
-    except Exception as e:
-        logger.error(f"Clipper failed: {e}")
 
     logger.info("✅ GitHub Actions cycle complete.")
 

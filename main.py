@@ -7,7 +7,6 @@ import pytz
 
 # Project Modules
 import news_bot
-import clipper
 
 # Setup logging
 logging.basicConfig(
@@ -29,26 +28,12 @@ def run_news_job():
     except Exception as e:
         logger.error(f"❌ News Cycle failed: {e}")
 
-def run_clipper_job():
-    """Wrapper to run the async clipper."""
-    logger.info("⏳ Starting scheduled Viral Clipper...")
-    try:
-        asyncio.run(clipper.run_clipper())
-        logger.info("✅ Viral Clipper completed successfully.")
-    except Exception as e:
-        logger.error(f"❌ Viral Clipper failed: {e}")
-
-
 def start_scheduler():
     logger.info("🚀 Global Tech Asset Hunter Scheduler Started")
     
     # 1. News Bot: Every 8 hours
     schedule.every(8).hours.do(run_news_job)
     logger.info("📅 Scheduled: News Bot every 8 hours.")
-    
-    # 2. Viral Clipper: Every day at 9:00 PM IST
-    schedule.every().day.at("21:00").do(run_clipper_job)
-    logger.info("📅 Scheduled: Viral Clipper daily at 21:00.")
     
 
     # Run immediately on startup? 
