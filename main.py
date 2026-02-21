@@ -29,7 +29,7 @@ def run_news_job():
         logger.error(f"❌ News Cycle failed: {e}")
 
 def start_scheduler():
-    logger.info("🚀 Global Tech Asset Hunter Scheduler Started")
+    logger.info("🚀 Tech News Scheduler Started")
     
     # 1. News Bot: Every 8 hours
     schedule.every(8).hours.do(run_news_job)

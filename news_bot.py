@@ -8,7 +8,6 @@ from telegram import Bot, InputMediaPhoto
 
 # Project Modules
 import brain
-import hunter
 
 HISTORY_FILE = "history.json"
 
@@ -41,26 +40,9 @@ if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
 
 bot = Bot(token=TELEGRAM_TOKEN)
 
-async def send_media_group_notification(item, assets):
-    """Sends a media group of 4 images and a separate Strategy Block."""
+async def send_text_notification(item):
+    """Sends a Strategy Block."""
     try:
-        media_group = []
-        # Order: Context, Subject 1, Subject 2, Logo
-        keys = ['bg_context', 'subject_1', 'subject_2', 'company_logo']
-        
-        files_data = [] 
-        
-        for key in keys:
-            path = assets.get(key)
-            if path and os.path.exists(path):
-                try:
-                    with open(path, 'rb') as f:
-                        file_bytes = f.read()
-                        files_data.append(file_bytes)
-                        media_group.append(InputMediaPhoto(media=file_bytes))
-                except Exception as e:
-                    logger.error(f"Error reading asset {path}: {e}")
-
         # Construct Strategy Block
         headline = item.get('headline', 'No Headline')
         link = item.get('link', '#')
@@ -76,17 +58,8 @@ async def send_media_group_notification(item, assets):
             f"#️⃣ <b>Hashtags</b>: {hashtags}"
         )
 
-        if media_group:
-            # Send media group
-            await bot.send_media_group(chat_id=TELEGRAM_CHAT_ID, media=media_group)
-            logger.info("Telegram media group sent.")
-            
-            # Send Strategy Block
-            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=caption, parse_mode='HTML', disable_web_page_preview=True)
-            logger.info("Telegram Strategy Block sent.")
-        else:
-            logger.warning("No media to send.")
-            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=caption, parse_mode='HTML')
+        await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=caption, parse_mode='HTML', disable_web_page_preview=True)
+        logger.info("Telegram Strategy Block sent.")
 
     except Exception as e:
         logger.error(f"Failed to send Telegram notification: {e}")
@@ -112,23 +85,8 @@ async def run_news_cycle():
             headline = item['headline']
             logger.info(f"Processing viral item (Score {item['score']}): {headline}")
             
-            people = item.get('people', [])
-            companies = item.get('companies', [])
-            
-            # 2. Hunter: Get 4 High-Res Assets
-            assets = hunter.hunt_assets(headline, people, companies)
-            
-            # 3. Delivery: Telegram Media Group + Strategy Block
-            await send_media_group_notification(item, assets)
-            
-            # Clean up local assets
-            for key, path in assets.items():
-                if path and os.path.exists(path):
-                    try:
-                        os.remove(path)
-                        logger.info(f"Deleted local asset: {path}")
-                    except Exception as e:
-                        logger.error(f"Failed to delete {path}: {e}")
+            # 2. Delivery: Telegram Strategy Block
+            await send_text_notification(item)
             
             # Update History
             history.append(headline)
