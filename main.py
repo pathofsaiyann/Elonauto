@@ -7,6 +7,9 @@ import pytz
 
 # Project Modules
 import news_bot
+import clipper
+import vc_hunter
+import paper_hunter
 
 # Setup logging
 logging.basicConfig(
@@ -28,13 +31,51 @@ def run_news_job():
     except Exception as e:
         logger.error(f"❌ News Cycle failed: {e}")
 
+def run_clipper_job():
+    """Wrapper to run the async clipper."""
+    logger.info("⏳ Starting scheduled Viral Clipper...")
+    try:
+        asyncio.run(clipper.run_clipper())
+        logger.info("✅ Viral Clipper completed successfully.")
+    except Exception as e:
+        logger.error(f"❌ Viral Clipper failed: {e}")
+
+def run_vc_job():
+    """Wrapper to run the async VC Hunter."""
+    logger.info("⏳ Starting scheduled VC Hunter...")
+    try:
+        asyncio.run(vc_hunter.run_vc_hunter())
+        logger.info("✅ VC Hunter completed successfully.")
+    except Exception as e:
+        logger.error(f"❌ VC Hunter failed: {e}")
+
+def run_paper_job():
+    """Wrapper to run the async Paper Hunter."""
+    logger.info("⏳ Starting scheduled Paper Hunter...")
+    try:
+        asyncio.run(paper_hunter.run_paper_hunter())
+        logger.info("✅ Paper Hunter completed successfully.")
+    except Exception as e:
+        logger.error(f"❌ Paper Hunter failed: {e}")
+
 def start_scheduler():
-    logger.info("🚀 Tech News Scheduler Started")
+    logger.info("🚀 Global Tech Asset Hunter Scheduler Started")
     
     # 1. News Bot: Every 8 hours
     schedule.every(8).hours.do(run_news_job)
     logger.info("📅 Scheduled: News Bot every 8 hours.")
     
+    # 2. Viral Clipper: Every day at 9:00 PM IST
+    schedule.every().day.at("21:00").do(run_clipper_job)
+    logger.info("📅 Scheduled: Viral Clipper daily at 21:00.")
+
+    # 3. VC Hunter: Every 12 hours
+    schedule.every(12).hours.do(run_vc_job)
+    logger.info("📅 Scheduled: VC Hunter every 12 hours.")
+    
+    # 4. Paper Hunter: Every day at 10:00 AM
+    schedule.every().day.at("10:00").do(run_paper_job)
+    logger.info("📅 Scheduled: Paper Hunter daily at 10:00.")
 
     # Run immediately on startup? 
     # User didn't ask to run immediately, but typically you want one run to verify.
