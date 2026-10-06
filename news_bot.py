@@ -77,16 +77,6 @@ async def send_media_group_notification(item, assets):
 HISTORY_FILE = "history.json"
 
 def load_history():
-    """Load command history from the JSON file.
-    
-    If ``HISTORY_FILE`` exists, the function attempts to read and parse its JSON
-    contents, returning the resulting list. Any exception encountered while
-    opening or decoding the file is logged via ``logger`` and results in an empty
-    list being returned. If the file does not exist, an empty list is also
-    returned.
-    
-    Returns:
-        list: The loaded history entries, or an empty list if the file is
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, "r") as f:
