@@ -59,6 +59,17 @@ def run_paper_job():
         logger.error(f"❌ Paper Hunter failed: {e}")
 
 def start_scheduler():
+    """Start the global scheduler for all automated bots.
+    
+    This function configures recurring jobs using the ``schedule`` library and
+    logs each registration:
+    
+    * **News Bot** – runs every 8 hours.
+    * **Viral Clipper** – runs daily at 21:00 IST.
+    * **Paper Hunter** – runs daily at 10:00.
+    
+    After scheduling, it enters an infinite loop that checks for pending jobs
+    every
     logger.info("🚀 Global Tech Asset Hunter Scheduler Started")
     
     # 1. News Bot: Every 8 hours
