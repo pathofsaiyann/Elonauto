@@ -92,6 +92,15 @@ def load_history():
     return []
 
 def save_history(history):
+    """
+    Save the provided history data to the JSON file defined by ``HISTORY_FILE``.
+    
+    Args:
+    history: A serializable object (e.g., list or dict) representing the history to be persisted.
+    
+    Returns:
+    None. Errors encountered while writing the file are logged via ``logger.error``.
+    """
     try:
         with open(HISTORY_FILE, "w") as f:
             json.dump(history, f, indent=4)
